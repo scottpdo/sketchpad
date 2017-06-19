@@ -1,25 +1,59 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
 
-class Line {
-  constructor(x1, y1, x2, y2) {
-    this.x1 = x1;
-    this.y1 = y1;
-    this.x2 = x2;
-    this.y2 = y2;
+function distance(p1, p2) {
+  const dx = p1.x - p2.x;
+  const dy = p1.y - p2.y;
+  return Math.round(Math.sqrt(dx * dx + dy * dy));
+}
+
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
   }
 
   update(e) {
-    this.x2 = e.x;
-    this.y2 = e.y;
+    this.x = e.x;
+    this.y = e.y;
+  }
+
+  near(pt) {
+    if (distance(pt, this) < 12) return this;
+    return null;
   }
 
   draw(context) {
     context.strokeStyle = 'rgb(255, 255, 255)';
     context.lineWidth = 2;
     context.beginPath();
-    context.moveTo(this.x1, this.y1);
-    context.lineTo(this.x2, this.y2);
+    context.arc(this.x, this.y, 3, 0, 2 * Math.PI);
+    context.stroke();
+  }
+}
+
+class Line {
+  constructor(p1, p2) {
+    this.p1 = p1;
+    this.p2 = p2;
+  }
+
+  update(e) {
+    this.p2.update(e);
+  }
+
+  near(pt) {
+    if (distance(pt, this.p1) < 12) return this.p1;
+    if (distance(pt, this.p2) < 12) return this.p2;
+    return null;
+  }
+
+  draw(context) {
+    context.strokeStyle = 'rgb(255, 255, 255)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(this.p1.x, this.p1.y);
+    context.lineTo(this.p2.x, this.p2.y);
     context.stroke();
   }
 }
@@ -38,6 +72,11 @@ class Circle {
     this.r = r;
   }
 
+  near(pt) {
+    // TODO?
+    return null;
+  }
+
   draw(context) {
     context.strokeStyle = 'rgb(255, 255, 255)';
     context.lineWidth = 2;
@@ -54,22 +93,25 @@ class Canvas extends Component {
     super();
 
     // mimic a slow refresh rate
-    const refreshRate = 10;
+    const refreshRate = 30;
 
     this.state = {
       t: 0,
       drawing: false,
-      cursor: { x: 0, y: 0 }
+      moving: false,
+      cursor: { x: 0, y: 0, at: null }
     };
 
     this.keys = {
       // CIRCLE
-      67: e => {
+      67: cursor => {
         this.setState({ drawing: !this.state.drawing }, () => {
 
           if (!this.state.drawing) return this.activeObj = null; // finished drawing
 
-          let circle = new Circle(e.x, e.y, 0);
+          const pt = cursor.at || cursor;
+
+          const circle = new Circle(pt.x, pt.y, 0);
           
           // set as active object and push to objects
           this.activeObj = circle;
@@ -77,16 +119,35 @@ class Canvas extends Component {
         });
       },
       // LINE
-      76: e => {
+      76: cursor => {
         this.setState({ drawing: !this.state.drawing }, () => {
 
           if (!this.state.drawing) return this.activeObj = null; // finished drawing
 
-          let line = new Line(e.x, e.y, e.x, e.y);
+          const pt = cursor.at || new Point(cursor.x, cursor.y);
+
+          const line = new Line(
+            pt,
+            new Point(pt.x, pt.y)
+          );
           
           // set as active object and push to objects
           this.activeObj = line;
           this.objects.push(line);
+        });
+      },
+      // MOVE
+      77: cursor => {
+        this.setState({ moving: !this.state.moving }, () => {
+
+          // if finished moving, or if cursor is not `at` any point, we're done
+          if (!this.state.moving || !cursor.at) return this.activeObj = null;
+
+          this.objects.forEach(obj => {
+            if (obj.near(cursor)) this.activeObj = obj.near(cursor);
+          });
+          
+          if (this.activeObj) this.activeObj.update(cursor);
         });
       }
     };
@@ -126,7 +187,7 @@ class Canvas extends Component {
     if (e) {
 
       this.setState({
-        cursor: { x: e.x, y: e.y }
+        cursor: { x: e.x, y: e.y, at: null }
       });
 
       context.strokeStyle = 'rgb(255, 255, 255)';
@@ -153,15 +214,27 @@ class Canvas extends Component {
       context.fillStyle = 'rgb(255, 255, 255)';
 
       context.beginPath();
-      context.arc(e.x, e.y, 2, 0, 2 * Math.PI);
+
+      let center = e;
+      this.objects.forEach(obj => {
+        if (this.state.moving) return;
+        if (obj.near(e)) {
+          center = obj.near(e);
+          this.setState({ 
+            cursor: Object.assign(this.state.cursor, { at: center }) 
+          });
+        }
+      });
+
+      context.arc(center.x, center.y, 2, 0, 2 * Math.PI);
       context.fill();
+
+      // update active object
+      if (this.activeObj) this.activeObj.update(center);
     }
 
-    // update active object
-    if (this.activeObj) this.activeObj.update(e);
-
     // draw objects
-    this.objects.forEach((obj) => {
+    this.objects.forEach(obj => {
       obj.draw(context);
     });
 
