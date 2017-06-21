@@ -5,6 +5,8 @@ import Point from '../geometries/point';
 import Line from '../geometries/line';
 import Circle from '../geometries/circle';
 
+import Cursor from '../cursor';
+
 import distance from '../utils/distance';
 
 class Canvas extends Component {
@@ -18,9 +20,10 @@ class Canvas extends Component {
 
     this.state = {
       t: 0,
+      isMouseDown: false,
       drawing: false,
       moving: false,
-      cursor: { x: 0, y: 0, at: null }
+      cursor: new Cursor()
     };
 
     this.keys = {
@@ -28,9 +31,9 @@ class Canvas extends Component {
       67: cursor => {
         this.setState({ drawing: !this.state.drawing }, () => {
 
-          if (!this.state.drawing) return this.activeObj = null; // finished drawing
+          if (!this.state.drawing) return this.cancel(cursor); // finished drawing
 
-          const pt = cursor.at || cursor;
+          const pt = cursor.target();
 
           const circle = new Circle(pt.x, pt.y, 0);
           
@@ -43,9 +46,9 @@ class Canvas extends Component {
       76: cursor => {
         this.setState({ drawing: !this.state.drawing }, () => {
 
-          if (!this.state.drawing) return this.activeObj = null; // finished drawing
+          if (!this.state.drawing) return this.cancel(cursor); // finished drawing
 
-          const pt = cursor.at || new Point(cursor.x, cursor.y);
+          const pt = cursor.target();
 
           const line = new Line(
             pt,
@@ -62,10 +65,13 @@ class Canvas extends Component {
         this.setState({ moving: !this.state.moving }, () => {
 
           // if finished moving, or if cursor is not `at` any point, we're done
-          if (!this.state.moving || !cursor.at) return this.activeObj = null;
+          if (!this.state.moving || !cursor.isOn()) return this.cancel(cursor);
 
           this.objects.forEach(obj => {
-            if (obj.near(cursor)) this.activeObj = obj.near(cursor);
+            const near = obj.near(cursor);
+            if (!near) return;
+
+            this.activeObj = obj.near(cursor);
           });
           
           if (this.activeObj) this.activeObj.update(cursor);
@@ -78,11 +84,22 @@ class Canvas extends Component {
 
     this.onResize = this.onResize.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
+    this.onMouseDown = this.onMouseDown.bind(this);
+    this.onMouseUp = this.onMouseUp.bind(this);
 
     this.update = _.throttle(
       this.update.bind(this),
       Math.round(1000 / refreshRate)
     );
+  }
+
+  cancel(e) {
+    this.update(e, true); // update once more (final)
+    this.setState({
+      moving: false,
+      drawing: false
+    });
+    this.activeObj = null;
   }
 
   onResize() {
@@ -95,27 +112,36 @@ class Canvas extends Component {
     if (this.keys[e.keyCode]) this.keys[e.keyCode](this.state.cursor);
   }
 
-  update(e) {
+  onMouseDown(e) {
+    this.setState({ isMouseDown: true });
+    this.update(e, false);
+  }
 
-    let t = this.state.t;
+  onMouseUp(e) {
+    this.setState({ isMouseDown: false });
+    this.cancel(e);
+  }
+
+  update(e, isFinal) {
 
     const canvas = this.refs.canvas;
     const context = canvas.getContext('2d');
 
+    // draw black background
     context.fillStyle = 'rgb(0, 0, 0)';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (e) {
+    // move cursor position
+    this.state.cursor.off();
+    this.state.cursor.update(e);
 
-      this.setState({
-        cursor: { x: e.x, y: e.y, at: null }
-      });
+    context.strokeStyle = 'rgb(255, 255, 255)';
+    context.lineWidth = 2;
 
-      context.strokeStyle = 'rgb(255, 255, 255)';
-      context.lineWidth = 2;
+    context.beginPath();
 
-      context.beginPath();
-
+    // draw crosshairs
+    if (this.state.isMouseDown) {
       // left
       context.moveTo(e.x - 20, e.y);
       context.lineTo(e.x - 5, e.y);
@@ -130,37 +156,42 @@ class Canvas extends Component {
       context.lineTo(e.x, e.y - 20);
 
       context.stroke();
-
-      context.lineWidth = 0;
-      context.fillStyle = 'rgb(255, 255, 255)';
-
-      context.beginPath();
-
-      let center = e;
-      this.objects.forEach(obj => {
-        if (this.state.moving) return;
-        if (obj.near(e)) {
-          center = obj.near(e);
-          this.setState({ 
-            cursor: Object.assign(this.state.cursor, { at: center }) 
-          });
-        }
-      });
-
-      context.arc(center.x, center.y, 2, 0, 2 * Math.PI);
-      context.fill();
-
-      // update active object
-      if (this.activeObj) this.activeObj.update(center);
     }
+
+    // determine if cursor is `near` any object
+    this.objects.forEach(obj => {
+
+      if (this.state.moving) return;
+
+      // don't count activeObj among objects that cursor could be near
+      // (it's probably near it already)
+      if (obj === this.activeObj) return;
+      
+      // if cursor is near an object, put it `on` that object
+      const near = obj.near(this.state.cursor.target());
+      if (!near) return;
+
+      this.state.cursor.on(near);
+    });
+
+    // draw center of cursor target (might not be where mouse is)
+    const center = this.state.cursor.target();
+
+    context.lineWidth = 0;
+    context.fillStyle = 'rgb(255, 255, 255)';
+
+    context.beginPath();
+
+    context.arc(center.x, center.y, 2, 0, 2 * Math.PI);
+    context.fill();
+
+    // update active object, if it exists
+    if (this.activeObj) this.activeObj.update(this.state.cursor, isFinal);
 
     // draw objects
     this.objects.forEach(obj => {
       obj.draw(context);
     });
-
-    t++;
-    this.setState({ t });
 
   }
 
@@ -168,13 +199,18 @@ class Canvas extends Component {
 
     const canvas = this.refs.canvas;
     const context = canvas.getContext('2d');
-
+    
     this.onResize();
-    this.update();
+
+    context.fillStyle = 'rgb(0, 0, 0)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
 
     window.addEventListener('resize', this.onResize);
-    window.addEventListener('mousemove', this.update);
+    window.addEventListener('mousemove', e => this.update(e, false));
     window.addEventListener('keyup', this.onKeyUp);
+
+    this.refs.canvas.addEventListener('mousedown', this.onMouseDown);
+    this.refs.canvas.addEventListener('mouseup', this.onMouseUp);
   }
 
   render() {

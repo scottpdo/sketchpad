@@ -1,9 +1,9 @@
+import Point from './point';
 import distance from '../utils/distance';
 
-export default class Circle {
+export default class Circle extends Point {
   constructor(x, y, r) {
-    this.x = x;
-    this.y = y;
+    super(x, y);
     this.r = r;
   }
 
