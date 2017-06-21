@@ -76,6 +76,13 @@ class Canvas extends Component {
           
           if (this.activeObj) this.activeObj.update(cursor);
         });
+      },
+      // DELETE
+      88: cursor => {
+        if (this.state.moving || this.state.drawing) return;
+        if (!this.state.isMouseDown) return;
+        this.objects = this.objects.filter(obj => !obj.near(cursor));
+        this.cancel(cursor);
       }
     };
 
