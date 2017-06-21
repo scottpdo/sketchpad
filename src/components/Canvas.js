@@ -1,90 +1,11 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
 
-function distance(p1, p2) {
-  const dx = p1.x - p2.x;
-  const dy = p1.y - p2.y;
-  return Math.round(Math.sqrt(dx * dx + dy * dy));
-}
+import Point from '../geometries/point';
+import Line from '../geometries/line';
+import Circle from '../geometries/circle';
 
-class Point {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  update(e) {
-    this.x = e.x;
-    this.y = e.y;
-  }
-
-  near(pt) {
-    if (distance(pt, this) < 12) return this;
-    return null;
-  }
-
-  draw(context) {
-    context.strokeStyle = 'rgb(255, 255, 255)';
-    context.lineWidth = 2;
-    context.beginPath();
-    context.arc(this.x, this.y, 3, 0, 2 * Math.PI);
-    context.stroke();
-  }
-}
-
-class Line {
-  constructor(p1, p2) {
-    this.p1 = p1;
-    this.p2 = p2;
-  }
-
-  update(e) {
-    this.p2.update(e);
-  }
-
-  near(pt) {
-    if (distance(pt, this.p1) < 12) return this.p1;
-    if (distance(pt, this.p2) < 12) return this.p2;
-    return null;
-  }
-
-  draw(context) {
-    context.strokeStyle = 'rgb(255, 255, 255)';
-    context.lineWidth = 2;
-    context.beginPath();
-    context.moveTo(this.p1.x, this.p1.y);
-    context.lineTo(this.p2.x, this.p2.y);
-    context.stroke();
-  }
-}
-
-class Circle {
-  constructor(x, y, r) {
-    this.x = x;
-    this.y = y;
-    this.r = r;
-  }
-
-  update(e) {
-    const dx = e.x - this.x;
-    const dy = e.y - this.y;
-    const r = Math.sqrt(dx * dx + dy * dy);
-    this.r = r;
-  }
-
-  near(pt) {
-    // TODO?
-    return null;
-  }
-
-  draw(context) {
-    context.strokeStyle = 'rgb(255, 255, 255)';
-    context.lineWidth = 2;
-    context.beginPath();
-    context.arc(this.x, this.y, this.r, 0, 2 * Math.PI);
-    context.stroke();
-  }
-}
+import distance from '../utils/distance';
 
 class Canvas extends Component {
 
@@ -93,7 +14,7 @@ class Canvas extends Component {
     super();
 
     // mimic a slow refresh rate
-    const refreshRate = 30;
+    const refreshRate = 12;
 
     this.state = {
       t: 0,
