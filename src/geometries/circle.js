@@ -1,5 +1,6 @@
 import Point from './point';
 import distance from '../utils/distance';
+import angle from '../utils/angle';
 
 export default class Circle extends Point {
   constructor(x, y, r) {
@@ -13,7 +14,14 @@ export default class Circle extends Point {
   }
 
   near(pt) {
-    // TODO?
+    if (Math.abs(distance(pt, this) - this.r) < 12) {
+      const a = angle(pt, this);
+      let d = new Point(pt.x - this.x, pt.y - this.y);
+      let m = distance(d, new Point());
+      d.x *= 12 / m;
+      d.y *= 12 / m;
+      return new Point(this.x + d.x, this.y + d.y);
+    }
     return null;
   }
 
