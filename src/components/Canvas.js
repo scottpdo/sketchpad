@@ -7,8 +7,6 @@ import Circle from '../geometries/circle';
 
 import Cursor from '../cursor';
 
-import distance from '../utils/distance';
-
 class Canvas extends Component {
 
   constructor() {
@@ -29,9 +27,13 @@ class Canvas extends Component {
     this.keys = {
       // CIRCLE
       67: cursor => {
-        this.setState({ drawing: !this.state.drawing }, () => {
+        
+        // only begin if mouse is down
+        if (!this.state.isMouseDown) return;
+        // only begin if not already drawing
+        if (this.state.drawing) return;
 
-          if (!this.state.drawing) return this.cancel(cursor); // finished drawing
+        this.setState({ drawing: !this.state.drawing }, () => {
 
           const pt = cursor.target();
 
@@ -44,6 +46,12 @@ class Canvas extends Component {
       },
       // LINE
       76: cursor => {
+        
+        // only begin if mouse is down
+        if (!this.state.isMouseDown) return;
+        // only begin if not already drawing
+        if (this.state.drawing) return;
+
         this.setState({ drawing: !this.state.drawing }, () => {
 
           if (!this.state.drawing) return this.cancel(cursor); // finished drawing
@@ -62,6 +70,7 @@ class Canvas extends Component {
       },
       // MOVE
       77: cursor => {
+        if (!this.state.isMouseDown) return;
         this.setState({ moving: !this.state.moving }, () => {
 
           // if finished moving, or if cursor is not `at` any point, we're done
