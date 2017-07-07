@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
 
-import Point from '../geometries/point';
-import Line from '../geometries/line';
-import Circle from '../geometries/circle';
+import Point from '../shapes/point';
+import Line from '../shapes/line';
+import Circle from '../shapes/circle';
 
 import Cursor from '../cursor';
 
@@ -19,21 +19,27 @@ class Canvas extends Component {
     this.state = {
       t: 0,
       isMouseDown: false,
-      drawing: false,
-      moving: false,
+      action: "",
       cursor: new Cursor()
     };
 
     this.keys = {
-      // CIRCLE
-      67: cursor => {
+      67: "CIRCLE",
+      76: "LINE",
+      77: "MOVE",
+      80: "COPY",
+      88: "DELETE",
+    };
+
+    this.commands = {
+      CIRCLE: cursor => {
         
         // only begin if mouse is down
         if (!this.state.isMouseDown) return;
         // only begin if not already drawing
-        if (this.state.drawing) return;
+        if (this.state.action === "drawing") return;
 
-        this.setState({ drawing: !this.state.drawing }, () => {
+        this.toggleAction("drawing", () => {
 
           const pt = cursor.target();
 
@@ -44,17 +50,16 @@ class Canvas extends Component {
           this.objects.push(circle);
         });
       },
-      // LINE
-      76: cursor => {
+      LINE: cursor => {
         
         // only begin if mouse is down
         if (!this.state.isMouseDown) return;
         // only begin if not already drawing
-        if (this.state.drawing) return;
+        if (this.is("drawing")) return;
 
-        this.setState({ drawing: !this.state.drawing }, () => {
+        this.toggleAction("drawing", () => {
 
-          if (!this.state.drawing) return this.cancel(cursor); // finished drawing
+          if (!this.is("drawing")) return this.cancel(cursor); // finished drawing
 
           const pt = cursor.target();
 
@@ -68,13 +73,12 @@ class Canvas extends Component {
           this.objects.push(line);
         });
       },
-      // MOVE
-      77: cursor => {
+      MOVE: cursor => {
         if (!this.state.isMouseDown) return;
-        this.setState({ moving: !this.state.moving }, () => {
+        this.toggleAction("moving", () => {
 
           // if finished moving, or if cursor is not `at` any point, we're done
-          if (!this.state.moving || !cursor.isOn()) return this.cancel(cursor);
+          if (!this.is("moving") || !cursor.isOn()) return this.cancel(cursor);
 
           this.objects.forEach(obj => {
             const near = obj.near(cursor);
@@ -83,12 +87,41 @@ class Canvas extends Component {
             this.activeObj = obj.near(cursor);
           });
           
-          if (this.activeObj) this.activeObj.update(cursor);
+          if (this.activeObj) this.activeObj.update(cursor, false);
         });
       },
-      // DELETE
-      88: cursor => {
-        if (this.state.moving || this.state.drawing) return;
+      COPY: cursor => {
+        // only begin if mouse is down
+        if (!this.state.isMouseDown) return;
+        this.toggleAction("moving", () => {
+
+          // if finished moving, we're done
+          if (!this.is("moving")) return this.cancel(cursor);
+
+          this.objects.forEach(obj => {
+            const near = obj.near(cursor);
+            if (!near) return;
+
+            this.activeObj = obj.near(cursor);
+          });
+
+          // if we found an object, copy it
+          if (this.activeObj) {
+            
+            const original = this.activeObj.original;
+            const copy = Object.create(original);
+            
+            this.objects.push(copy);
+            this.activeObj = copy;
+
+            // const dx = 1;
+            // const dy = 1;
+            copy.move(100, 100);
+          }
+        });
+      },
+      DELETE: cursor => {
+        if (this.is("moving") || this.is("drawing")) return;
         if (!this.state.isMouseDown) return;
         this.objects = this.objects.filter(obj => !obj.near(cursor));
         this.cancel(cursor);
@@ -109,12 +142,28 @@ class Canvas extends Component {
     );
   }
 
+  /*
+   * If the given action is the current state action, turn it off.
+   * Otherwise, set it to be the new state action.
+   */
+  toggleAction(action, callback) {
+    const currentAction = this.state.action;
+    this.setState({ 
+      action: (action !== currentAction) ? action : "" 
+    }, callback || _.noop);
+  }
+
+  /*
+   * Evaluate the current action.
+   */
+  is(action) {
+    if (_.isNil(action)) return this.state.action;
+    return this.state.action === action;
+  }
+
   cancel(e) {
     this.update(e, true); // update once more (final)
-    this.setState({
-      moving: false,
-      drawing: false
-    });
+    this.toggleAction("");
     this.activeObj = null;
   }
 
@@ -125,7 +174,10 @@ class Canvas extends Component {
   }
 
   onKeyUp(e) {
-    if (this.keys[e.keyCode]) this.keys[e.keyCode](this.state.cursor);
+    if (this.keys[e.keyCode]) {
+      const command = this.keys[e.keyCode];
+      this.commands[command](this.state.cursor);
+    }
   }
 
   onMouseDown(e) {
@@ -149,7 +201,7 @@ class Canvas extends Component {
 
     // move cursor position
     this.state.cursor.off();
-    this.state.cursor.update(e);
+    this.state.cursor.update(e, false);
 
     context.strokeStyle = 'rgb(255, 255, 255)';
     context.lineWidth = 2;
@@ -177,7 +229,7 @@ class Canvas extends Component {
     // determine if cursor is `near` any object
     this.objects.forEach(obj => {
 
-      if (this.state.moving) return;
+      if (this.is("moving")) return;
 
       // don't count activeObj among objects that cursor could be near
       // (it's probably near it already)
@@ -202,13 +254,12 @@ class Canvas extends Component {
     context.fill();
 
     // update active object, if it exists
-    if (this.activeObj) this.activeObj.update(this.state.cursor, isFinal);
+    if (this.activeObj) {
+      this.activeObj.update(this.state.cursor, isFinal);
+    }
 
     // draw objects
-    this.objects.forEach(obj => {
-      obj.draw(context);
-    });
-
+    this.objects.forEach(obj => obj.draw(context));
   }
 
   componentDidMount() {

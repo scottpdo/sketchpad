@@ -1,4 +1,4 @@
-import Point from './geometries/point';
+import Point from './shapes/point';
 
 export default class Cursor extends Point {
 

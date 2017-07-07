@@ -6,9 +6,14 @@ export default class Point {
     this.y = y;
   }
 
-  update(e) {
-    this.x = e.x;
-    this.y = e.y;
+  update(cursor) {
+    this.x = cursor.x;
+    this.y = cursor.y;
+  }
+
+  move(dx, dy) {
+    this.x += dx;
+    this.y += dy;
   }
 
   near(pt) {

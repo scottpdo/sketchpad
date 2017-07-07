@@ -1,4 +1,5 @@
 import Point from './point';
+import Generic from './generic';
 import distance from '../utils/distance';
 
 export default class Circle extends Point {
@@ -13,15 +14,19 @@ export default class Circle extends Point {
   }
 
   near(pt) {
+
+    const minDistance = 12;
     
-    if (Math.abs(distance(pt, this) - this.r) > 12) return null;
+    if (Math.abs(distance(pt, this) - this.r) > minDistance) return null;
     
     let d = new Point(pt.x - this.x, pt.y - this.y);
     let m = distance(d, new Point());
     d.x *= this.r / m;
     d.y *= this.r / m;
+    d.x = Math.round(d.x);
+    d.y = Math.round(d.y);
 
-    return new Point(this.x + d.x, this.y + d.y);
+    return new Generic(this.x + d.x, this.y + d.y, this);
   }
 
   draw(context) {
