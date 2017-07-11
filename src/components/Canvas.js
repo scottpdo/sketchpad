@@ -202,9 +202,6 @@ class Canvas extends Component {
     const canvas = this.refs.canvas;
     const context = canvas.getContext('2d');
 
-    // save the x/y coords of cursor for reference later
-    const prevCursorPt = new Point(this.state.cursor.x, this.state.cursor.y);
-
     // draw black background
     context.fillStyle = 'rgb(0, 0, 0)';
     context.fillRect(0, 0, canvas.width, canvas.height);
