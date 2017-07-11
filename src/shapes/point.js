@@ -1,12 +1,19 @@
+import _ from 'lodash';
+
 import distance from '../utils/distance';
 
 export default class Point {
+
   constructor(x = 0, y = 0) {
     this.x = x;
     this.y = y;
   }
 
-  update(cursor) {
+  update(cursor, isFinal) {
+
+    console.assert(_.isNumber(cursor.x) && _.isNumber(cursor.y));
+    console.assert(_.isBoolean(isFinal));
+
     this.x = cursor.x;
     this.y = cursor.y;
   }
@@ -19,6 +26,10 @@ export default class Point {
   near(pt) {
     if (distance(pt, this) < 12) return this;
     return null;
+  }
+
+  clone() {
+    return new Point(this.x, this.y);
   }
 
   draw(context) {

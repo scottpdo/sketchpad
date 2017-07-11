@@ -10,6 +10,11 @@ export default class Cursor extends Point {
 		this.at = null;
 	}
 
+	/*
+	 * Return a boolean that is true if the cursor is
+	 * currently "at" a target point (near an endpoint or midpoint,
+	 * for example).
+	 */
 	isOn() {
 		return !!this.at;
 	}

@@ -1,5 +1,8 @@
+import _ from 'lodash';
+
 import Point from './point';
 import Generic from './generic';
+import Cursor from '../cursor';
 
 import distance from '../utils/distance';
 
@@ -12,8 +15,11 @@ export default class Line {
 
   update(cursor, isFinal) {
 
-    if (!isFinal || !cursor.isOn()) return this.p2.update(cursor.target());
-    
+    console.assert(cursor instanceof Cursor);
+    console.assert(_.isBoolean(isFinal));
+
+    if (!isFinal || !cursor.isOn()) return this.p2.update(cursor.target(), isFinal);
+
     this.p2 = cursor.target();
   }
 
@@ -55,6 +61,13 @@ export default class Line {
     }
 
     return null;
+  }
+
+  clone() {
+    return new Line(
+      new Point(this.p1.x, this.p1.y),
+      new Point(this.p2.x, this.p2.y)
+    );
   }
 
   draw(context) {

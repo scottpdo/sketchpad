@@ -4,11 +4,11 @@ import Point from './point';
 import Cursor from '../cursor';
 
 export default class Generic extends Point {
-	
+
 	constructor(x, y, original) {
 		super(x, y);
 		this.original = original;
-	}	
+	}
 
 	update(cursor, isFinal) {
 

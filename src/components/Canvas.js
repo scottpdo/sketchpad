@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import _ from 'lodash';
 
 import Point from '../shapes/point';
+import Generic from '../shapes/generic';
 import Line from '../shapes/line';
 import Circle from '../shapes/circle';
 
@@ -32,8 +33,9 @@ class Canvas extends Component {
     };
 
     this.commands = {
+
       CIRCLE: cursor => {
-        
+
         // only begin if mouse is down
         if (!this.state.isMouseDown) return;
         // only begin if not already drawing
@@ -44,14 +46,15 @@ class Canvas extends Component {
           const pt = cursor.target();
 
           const circle = new Circle(pt.x, pt.y, 0);
-          
+
           // set as active object and push to objects
           this.activeObj = circle;
           this.objects.push(circle);
         });
       },
+
       LINE: cursor => {
-        
+
         // only begin if mouse is down
         if (!this.state.isMouseDown) return;
         // only begin if not already drawing
@@ -67,12 +70,13 @@ class Canvas extends Component {
             pt,
             new Point(pt.x, pt.y)
           );
-          
+
           // set as active object and push to objects
           this.activeObj = line;
           this.objects.push(line);
         });
       },
+
       MOVE: cursor => {
         if (!this.state.isMouseDown) return;
         this.toggleAction("moving", () => {
@@ -86,10 +90,11 @@ class Canvas extends Component {
 
             this.activeObj = obj.near(cursor);
           });
-          
+
           if (this.activeObj) this.activeObj.update(cursor, false);
         });
       },
+
       COPY: cursor => {
         // only begin if mouse is down
         if (!this.state.isMouseDown) return;
@@ -107,19 +112,21 @@ class Canvas extends Component {
 
           // if we found an object, copy it
           if (this.activeObj) {
-            
-            const original = this.activeObj.original;
-            const copy = Object.create(original);
-            
-            this.objects.push(copy);
-            this.activeObj = copy;
 
-            // const dx = 1;
-            // const dy = 1;
-            copy.move(100, 100);
+            const copy = this.activeObj.original.clone();
+
+            const genericCopy = new Generic(
+              cursor.target().x,
+              cursor.target().y,
+              copy
+            );
+
+            this.objects.push(copy);
+            this.activeObj = genericCopy;
           }
         });
       },
+
       DELETE: cursor => {
         if (this.is("moving") || this.is("drawing")) return;
         if (!this.state.isMouseDown) return;
@@ -148,8 +155,8 @@ class Canvas extends Component {
    */
   toggleAction(action, callback) {
     const currentAction = this.state.action;
-    this.setState({ 
-      action: (action !== currentAction) ? action : "" 
+    this.setState({
+      action: (action !== currentAction) ? action : ""
     }, callback || _.noop);
   }
 
@@ -195,6 +202,9 @@ class Canvas extends Component {
     const canvas = this.refs.canvas;
     const context = canvas.getContext('2d');
 
+    // save the x/y coords of cursor for reference later
+    const prevCursorPt = new Point(this.state.cursor.x, this.state.cursor.y);
+
     // draw black background
     context.fillStyle = 'rgb(0, 0, 0)';
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -234,7 +244,7 @@ class Canvas extends Component {
       // don't count activeObj among objects that cursor could be near
       // (it's probably near it already)
       if (obj === this.activeObj) return;
-      
+
       // if cursor is near an object, put it `on` that object
       const near = obj.near(this.state.cursor.target());
       if (!near) return;
@@ -266,7 +276,7 @@ class Canvas extends Component {
 
     const canvas = this.refs.canvas;
     const context = canvas.getContext('2d');
-    
+
     this.onResize();
 
     context.fillStyle = 'rgb(0, 0, 0)';

@@ -16,9 +16,9 @@ export default class Circle extends Point {
   near(pt) {
 
     const minDistance = 12;
-    
+
     if (Math.abs(distance(pt, this) - this.r) > minDistance) return null;
-    
+
     let d = new Point(pt.x - this.x, pt.y - this.y);
     let m = distance(d, new Point());
     d.x *= this.r / m;
@@ -27,6 +27,10 @@ export default class Circle extends Point {
     d.y = Math.round(d.y);
 
     return new Generic(this.x + d.x, this.y + d.y, this);
+  }
+
+  clone() {
+    return new Circle(this.x, this.y, this.r);
   }
 
   draw(context) {
